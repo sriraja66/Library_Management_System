@@ -1,6 +1,11 @@
 from datetime import datetime, timedelta
 from modules.validation import Validation
 class TransactionModule(Validation):
+    def get_user_membership_setting(self, user_id, setting, default=None):
+        membership_type = self.db["users"][user_id].get("membership", {}).get("type")
+        return self.db["settings"]["memberships"].get(
+            membership_type, {}
+        ).get(setting, default)
 
     def issue_book(self):
         librarian_id = input("Enter librarian ID: ")
@@ -34,7 +39,8 @@ class TransactionModule(Validation):
                 if age_restriction and user_age < int(age_restriction):
                     print("User is not old enough to borrow this book.")
                     return
-                if membership_restriction and self.db["users"][user_id]["membership_status"] != membership_restriction:
+                user_membership = self.db["users"][user_id].get("membership", {}).get("type")
+                if membership_restriction and user_membership != membership_restriction:
                     print("User does not meet the membership requirements for this book.")
                     return
                     
@@ -53,7 +59,7 @@ class TransactionModule(Validation):
                         
                         # Loop until a valid date format is given
                         while True:
-                            issue_date_str = self.validate_date("Enter issue date (YYYY-MM-DD): ")
+                            issue_date_str = self.validate_date("issue date")
                             try:
                                 if issue_date_str is None:
                                     return
@@ -62,7 +68,11 @@ class TransactionModule(Validation):
                             except ValueError:
                                 print("Invalid date format. Please try again.")
                         
-                        days = self.db["users"][user_id]["membership"]["max_reservation_days"]
+                        days = self.get_user_membership_setting(
+                            user_id,
+                            "max_reservation_days",
+                            7
+                        )
                         due_date_obj = issue_date_obj + timedelta(days=int(days))
                         
                         self.db["books"][book_id]["inventory"]["available_copies"] -= 1
@@ -95,6 +105,8 @@ class TransactionModule(Validation):
     # Damage book 
     def damage_book(self):
         librarian_id = input("Enter librarian ID: ")
+        if librarian_id.strip().lower() == "return":
+            return
         user_id = input("Enter user ID: ")
         if user_id.strip().lower() == "return":
             return
@@ -104,9 +116,8 @@ class TransactionModule(Validation):
         if librarian_id in self.db["users"] and self.db["users"][librarian_id]["role"] == "librarian":
             if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
                 if book_id in self.db["books"]:
-                    
                     while True:
-                        date_str = self.validate_date("Enter date (YYYY-MM-DD): ")
+                        date_str = self.validate_date("date")
                         if date_str is None:
                             return
                         try:
@@ -132,6 +143,8 @@ class TransactionModule(Validation):
     # Lost book 
     def lost_book(self):
         librarian_id = input("Enter librarian ID: ")
+        if librarian_id.strip().lower() == "return":
+            return
         user_id = input("Enter user ID: ")
         if user_id.strip().lower() == "return":
             return 
@@ -141,9 +154,13 @@ class TransactionModule(Validation):
         if librarian_id in self.db["users"] and self.db["users"][librarian_id]["role"] == "librarian":
             if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
                 if book_id in self.db["books"]:
+                    inventory = self.db["books"][book_id]["inventory"]
+                    if inventory["available_copies"] <= 0:
+                        print("No available copies to mark as lost.")
+                        return
                     
                     while True:
-                        date_str = self.validate_date("Enter date (YYYY-MM-DD): ")
+                        date_str = self.validate_date("date")
                         if date_str is None:
                             return
                         try:
@@ -157,8 +174,8 @@ class TransactionModule(Validation):
                         "action": "marked as lost",
                         "date": date_str
                     }
-                    self.db["books"][book_id]["inventory"]["lost_copies"] += 1
-                    self.db["books"][book_id]["inventory"]["available_copies"] -= 1
+                    inventory["lost_copies"] += 1
+                    inventory["available_copies"] -= 1
                     print(f"Book {book_id} marked as lost by librarian {librarian_id} for user {user_id}.")
                 else:
                     print("Book not found.")
@@ -178,10 +195,12 @@ class TransactionModule(Validation):
                 return
             if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
                 book_id = input("Enter book ID: ")
+                if book_id.strip().lower() == "return":
+                    return
                 if book_id in self.db["books"]:
                     
                     while True:
-                        return_date_str = self.validate_date("Enter return date (YYYY-MM-DD): ")
+                        return_date_str = self.validate_date("return date")
                         if return_date_str is None:
                             return
                         try:
@@ -196,16 +215,14 @@ class TransactionModule(Validation):
                             
                             # Check late status securely using the verified active transaction record
                             due_date = datetime.strptime(transaction_info["due_date"], "%Y-%m-%d")
+                            transaction_info["return_date"] = return_date_str
+                            transaction_info["status"] = "returned"
+                            self.db["books"][book_id]["inventory"]["available_copies"] += 1
                             if return_date > due_date:
-                                print("Book is returned late. Fine will be calculated.")
-                                return
-                            else:
-                              transaction_info["return_date"] = return_date_str
-                              transaction_info["status"] = "returned"
-                              self.db["books"][book_id]["inventory"]["available_copies"] += 1
-                              print(f"Book {book_id} returned by user {user_id} to librarian {librarian_id} successfully.")
-                              transaction_found = True
-                              return
+                                print("Book is returned late. Calculate fine from Fine Management.")
+                            print(f"Book {book_id} returned by user {user_id} to librarian {librarian_id} successfully.")
+                            transaction_found = True
+                            return
                     
                     if not transaction_found:
                         print("No active transaction found for this book and user.")
@@ -265,6 +282,8 @@ class TransactionModule(Validation):
                     for transaction_info in self.db["users"][user_id]["Transactions"].values():
                         if transaction_info["book_id"] == book_id and transaction_info["return_date"] is None:
                             transaction_info["status"] = "cancelled"
+                            transaction_info["return_date"] = "cancelled"
+                            self.db["books"][book_id]["inventory"]["available_copies"] += 1
                             print(f"Transaction for book {book_id} cancelled by librarian {librarian_id} for user {user_id}.")
                             return
                     print("No active transaction found for this book and user.")

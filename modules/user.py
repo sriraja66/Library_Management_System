@@ -46,43 +46,54 @@ class User_module (Validation):
         if membership is None:
             return
 
-        self.db["users"][i] = {
-
+        user_details = {
             "name": name,
-
             "email": email,
-
             "phone": phone,
-
             "address": address,
-
             "age": age,
-
             "role": role,
-
-            "membership": {
-
-                "type": membership,
-
-                "status": "active"
-            },
-
-            "Transactions": {},
-
-            "Fines": {},
-
-            "reservations": {},
-
-            "reviews": {},
-
-            "history": {},
-
-            "user_status": "active"
+            "membership": membership
         }
 
-        print(f"User {i} added successfully.")
+        if self.confirm_details(user_details, "User Details"):
+            self.db["users"][i] = {
 
-    # view all users 
+                "name": name,
+
+                "email": email,
+
+                "phone": phone,
+
+                "address": address,
+
+                "age": age,
+
+                "role": role,
+
+                "membership": {
+
+                    "type": membership,
+
+                    "status": "active"
+                },
+
+                "Transactions": {},
+
+                "Fines": {},
+
+                "reservations": {},
+
+                "reviews": {},
+
+                "history": {},
+
+                "user_status": "active"
+            }
+
+            print(f"User {i} added successfully.")
+
+    # view all users
 
     def view_users(self):
         if not self.db["users"]:
@@ -97,51 +108,72 @@ class User_module (Validation):
     # update user details
     def update_user(self):
         user_id = input("Enter User ID: ")
+        if user_id.strip().lower() == "return":
+            return
+
         if user_id in self.db["users"]:
             user = self.db["users"][user_id]
             print("Leave Blank To Keep Old Value\n")
 
              # NAME
             name = input(f"Name ({user['name']}): ")
-            if name is None :
+            if name.strip().lower() == "return":
                 return
             if name:
-              user["name"] = self.validate_text("Name")
+              new_name = self.validate_text("Name")
+              if new_name is None:
+                  return
+              user["name"] = new_name
 
              # EMAIL
             email = input(f"Email ({user['email']}): ")
-            if email is None:
+            if email.strip().lower() == "return":
                 return
             if email:
-                user["email"] = self.validate_email()
+                new_email = self.validate_email()
+                if new_email is None:
+                    return
+                user["email"] = new_email
 
             # PHONE
             phone = input(f"Phone ({user['phone']}): ")
-            if phone is None:
-                return  
+            if phone.strip().lower() == "return":
+                return
             if phone:
-                user["phone"] = self.validate_phone()
+                new_phone = self.validate_phone()
+                if new_phone is None:
+                    return
+                user["phone"] = new_phone
 
             # ADDRESS
             address = input(f"Address ({user['address']}): ")
-            if address is None:
+            if address.strip().lower() == "return":
                 return
             if address:
-                user["address"] = self.validate_text("Address")
+                new_address = self.validate_text("Address")
+                if new_address is None:
+                    return
+                user["address"] = new_address
 
             # AGE
             age = input(f"Age ({user['age']}): ")
-            if age is None:
+            if age.strip().lower() == "return":
                 return
             if age:
-                user["age"] = self.validate_age()
+                new_age = self.validate_age()
+                if new_age is None:
+                    return
+                user["age"] = new_age
 
             # ROLE
             role = input(f"Role ({user['role']}): ")
-            if role is None:
+            if role.strip().lower() == "return":
                 return
             if role:
-                user["role"] = self.validate_text("Role")
+                new_role = self.validate_role()
+                if new_role is None:
+                    return
+                user["role"] = new_role
 
             print("User Updated Successfully")
 
@@ -151,7 +183,7 @@ class User_module (Validation):
     # search user
     def search_user(self):
         i = input("Enter user ID to search: ")
-        if i.lower() == "return":
+        if self.is_return_input(i):
             return
         if i in self.db["users"]:
             print(f"User ID: {i}")
@@ -159,36 +191,36 @@ class User_module (Validation):
                 print(f"{key}: {value}")
         else:
             print("User not found.")
-    
-    
+
+
     # delete user
     def delete_user(self):
         user_id = input("Enter user ID to delete: ")
-        if user_id.lower() == "return":
+        if self.is_return_input(user_id):
             return
         if user_id in self.db["users"]:
             self.db["users"][user_id]["user_status"] = "inactive"
             print(f"User {user_id} deleted successfully.")
         else:
             print("User not found.")
-    
-    
-    # add the supplier details 
+
+
+    # add the supplier details
     def add_supplier(self):
         i = f"S{len(self.db['suppliers']) + 1}"
         supplier_name = self.validate_text("supplier name")
-        if supplier_name is None:    
+        if supplier_name is None:
             return
         contact_info = self.validate_phone("contact number")
         if contact_info is None:
             return
         joining_date = self.validate_date("joining date")
         if joining_date is None:
-            return      
+            return
         address = self.validate_text("supplier address")
         if address is None:
             return
-        
+
         self.db["suppliers"][i] = {
                 "supplier_name": supplier_name,
                 "contact_info": contact_info,

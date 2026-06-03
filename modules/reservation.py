@@ -4,14 +4,14 @@ class Reservation_module( Validation):
     # reserve the book
     def reserve_book(self):
         user_id = input("Enter User ID: ")
-        if user_id.lower() == "return":
+        if self.is_return_input(user_id):
             return
         if user_id not in self.db["users"] or self.db["users"][user_id]["user_status"] != "active":
             print("User Not Found")
             return
-        
+
         book_id = input("Enter Book ID: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
         if book_id not in self.db["books"]:
             print("Book Not Found")
@@ -23,7 +23,7 @@ class Reservation_module( Validation):
         if user["membership"]["status"] == "inactive":
             print("User Membership Is Inactive")
             return
-        
+
         # restriction checks
         age_restriction = book["restrictions"].get("age_restriction")
         membership_restriction = book["restrictions"].get("membership_restriction")
@@ -48,28 +48,40 @@ class Reservation_module( Validation):
             ):
                 print("Book Already Reserved")
                 return
-        # add to reservation queue
-        book["reservation_queue"].append(user_id)
-        # create reservation
-        reservation_id = f"R{len(user['reservations']) + 1}"
-        user["reservations"][reservation_id] = {
-            "book_id": book_id,
-            "reservation_date": self.validate_date("Reservation Date (YYYY-MM-DD)"),
-            "status": "reserved",
+        
+        reservation_date = self.validate_date("Reservation Date (YYYY-MM-DD)")
+        if reservation_date is None:
+            return
+
+        reservation_details = {
+            "user": user["name"],
+            "book": book["basic"]["title"],
+            "date": reservation_date
         }
-        print(f"Book {book_id} Reserved " f"For User {user_id}")
+
+        if self.confirm_details(reservation_details, "Reservation Details"):
+            # add to reservation queue
+            book["reservation_queue"].append(user_id)
+            # create reservation
+            reservation_id = f"R{len(user['reservations']) + 1}"
+            user["reservations"][reservation_id] = {
+                "book_id": book_id,
+                "reservation_date": reservation_date,
+                "status": "reserved",
+            }
+            print(f"Book {book_id} Reserved " f"For User {user_id}")
 
 
     # cancel reservation by user
     def cancel_reservation(self):
         user_id = input("Enter User ID: ")
-        if user_id.lower() == "return":
+        if self.is_return_input(user_id):
             return
         if user_id not in self.db["users"] or self.db["users"][user_id]["user_status"] != "active":
             print("User Not Found or Inactive")
             return
         book_id = input("Enter Book ID: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
         if book_id not in self.db["books"]:
             print("Book Not Found")
@@ -94,14 +106,14 @@ class Reservation_module( Validation):
         # delete reservation
         del user["reservations"][reservation_key]
         print("Reservation Cancelled Successfully")
-    
-    
+
+
     # cancel reservation by librarian
     def cancel_reservation_by_librarian(self):
         book_id = input("Enter Book ID: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
-        
+
         if book_id not in self.db["books"]:
             print("Book Not Found")
             return
@@ -111,7 +123,10 @@ class Reservation_module( Validation):
             print("No Reservation Queue")
             return
         print("Current Queue:", queue)
-        remove_users = input("Enter User IDs To Remove " "(comma separated): ").split("," )
+        remove_users_input = input("Enter User IDs To Remove " "(comma separated): ")
+        if self.is_return_input(remove_users_input):
+            return
+        remove_users = remove_users_input.split("," )
         # remove spaces
         cleaned_users = []
         for user in remove_users:
@@ -140,7 +155,7 @@ class Reservation_module( Validation):
 
     # view  reservations
     def view_reservations(self):
-        if not self.db["users"] or self.db["users"][user_id]["user_status"] != "active":
+        if not self.db["users"]:
             print("No users found.")
             return
         for user_id, user_info in self.db["users"].items():
@@ -149,13 +164,13 @@ class Reservation_module( Validation):
                 print(f"Reservation ID: {reservation_id}")
                 for key, value in reservation_info.items():
                     print(f"{key}: {value}")
-                    
-                    
+
+
     # search reservations by user ID
     def search_reservations_by_user(self):
         user_id = input("Enter user ID to search reservations: ")
-        if user_id.lower() == "return":
-            return  
+        if self.is_return_input(user_id):
+            return
         if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
             print(f"User ID: {user_id}")
             for reservation_id, reservation_info in self.db["users"][user_id]["reservations"].items():
@@ -164,11 +179,11 @@ class Reservation_module( Validation):
                     print(f"{key}: {value}")
         else:
             print("User not found.")
-            
+
     # search reservations by book ID
     def search_reservations_by_book(self):
         book_id = input("Enter book ID to search reservations: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
         if book_id in self.db["books"]:
             print(f"Book ID: {book_id}")

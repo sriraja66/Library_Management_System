@@ -7,13 +7,17 @@ class ReviewModule(Validation):
         if not user_id:
             return
         book_id = input("Enter Book ID: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
         if book_id not in self.db["books"]:
             print("Book Not Found")
             return
-        review = self.validate_text("review")
+        review = self.validate_review_text()
+        if review is None:
+            return
         rating = self.validate_rating()
+        if rating is None:
+            return
         
         
         if "reviews" not in self.db["books"][book_id]:
@@ -27,7 +31,7 @@ class ReviewModule(Validation):
         
     def view_reviews(self):
         book_id = input("Enter Book ID to view reviews: ")
-        if book_id.lower() == "return":
+        if self.is_return_input(book_id):
             return
         if book_id not in self.db["books"]:
             print("Book Not Found")
@@ -40,17 +44,18 @@ class ReviewModule(Validation):
             
     def search_reviews_by_user(self):
         user_id = input("Enter User ID to search reviews: ")
-        if user_id.lower() == "return":
+        if self.is_return_input(user_id):
             return
         if user_id not in self.db["users"] or self.db["users"][user_id]["user_status"] != "active":
             print("User Not Found or Inactive")
             return
         
+        found_reviews = False
         for book_id, book_info in self.db["books"].items():
             if "reviews" in book_info:
                 for review in book_info["reviews"]:
                     if review["user_id"] == user_id:
                         print(f"Book ID: {book_id}, Rating: {review['rating']}, Review: {review['review']}")
                         found_reviews = True
-        else:
+        if not found_reviews:
             print("No reviews found for this user.")

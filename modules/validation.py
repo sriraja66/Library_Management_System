@@ -1,8 +1,12 @@
+from datetime import datetime
 
 from database.database import Library
 
 
 class Validation(Library):
+
+    def is_return_input(self, value):
+        return value.strip().lower() == "return"
 
 
     # NAME + ADDRESS VALIDATION
@@ -105,7 +109,7 @@ class Validation(Library):
                 return membership
 
             print("Invalid Membership Type!")
-            
+
     #isbn validation
     def validate_isbn(self):
         while True:
@@ -118,8 +122,8 @@ class Validation(Library):
             if len(isbn)  == 13 and isbn.isdigit():
                 return isbn
             print("Invalid ISBN! must be a 13 digit number.")
-            
-            
+
+
     # publication year validation
     def validate_publication_year(self):
         while True:
@@ -132,8 +136,8 @@ class Validation(Library):
             if len(year) == 4 and year.isdigit():
                 return year
             print("Invalid Publication Year!")
-            
-    # number validation   
+
+    # number validation
     def validate_number(self, field):
         while True:
             number = input(
@@ -143,9 +147,24 @@ class Validation(Library):
             if number.strip().lower() == "return":
                 return None
             if number.isdigit():
-                return number
+                return int(number)
             print(f"Invalid {field}!")
-            
+
+    def validate_review_text(self):
+        while True:
+            review = input(
+                "Enter review "
+                "(type 'return' to go back): "
+            ).strip()
+
+            if review.lower() == "return":
+                return None
+
+            if review:
+                return review
+
+            print("Review cannot be empty.")
+
     # review rating validation
     def validate_rating(self):
         while True:
@@ -160,7 +179,7 @@ class Validation(Library):
                 if 1 <= rating_int <= 5:
                     return rating
             print("Invalid Rating! Must be a number between 1 and 5.")
-            
+
     # date validation simple
     def validate_date(self, field):
         while True:
@@ -171,15 +190,14 @@ class Validation(Library):
             if date.strip().lower() == "return":
                 return None
             try:
-                year, month, day = map(int, date.split("-"))
-                if 1 <= year <= 2100:
-                    if 1 <= month <= 12 and 1 <= day <= 31:
-                        return date
+                parsed_date = datetime.strptime(date, "%Y-%m-%d")
+                if 1 <= parsed_date.year <= 2100:
+                    return date
                 print("Invalid Date! Year must be between 0001 and 2100.")
             except ValueError:
                 print(f"Invalid {field}! Must be in YYYY-MM-DD format.")
-            
-            
+
+
     # role validation libibrarian, member , admin
     def validate_role(self):
         while True:
@@ -192,7 +210,7 @@ class Validation(Library):
             if role in ["librarian", "member", "admin"]:
                 return role
             print("Invalid Role! Must be librarian, member, or admin.")
-     
+
     # validate supplier id for book supplier details
     def validate_supplier_id(self):
         while True:
@@ -205,7 +223,7 @@ class Validation(Library):
             if supplier_id in self.db["suppliers"] and supplier_id.strip() != "":
                 return supplier_id
             print("Invalid Supplier ID! Must be an existing supplier ID. and cannot be empty.")
-    
+
     # validate supplier name for book supplier details
     def validate_supplier_name(self):
         while True:
@@ -215,10 +233,10 @@ class Validation(Library):
             )
             if supplier_name.strip().lower() == "return":
                 return None
-            if supplier_name in [supplier["supplier_name"] for supplier in self.db["suppliers"].values()] and supplier_name.strip() != "":
+            if supplier_name in [supplier["supplier_name"] for supplier in self.db["suppliers"].values()] and supplier_name.strip() != "":  
                 return supplier_name
             print("Invalid Supplier Name! Must be an existing supplier name. or cannot be empty.")
-     
+
     # contact info validation for book supplier details
     def validate_contact_info(self):
         while True:
@@ -231,25 +249,32 @@ class Validation(Library):
             if contact_info.isdigit() and len(contact_info) == 10 and contact_info in [supplier["contact_info"] for supplier in self.db["suppliers"].values()]:
                 return contact_info
             print("Invalid Contact Info! Must be a 10 digit phone number. and must be an existing contact info in suppliers.")
-            
-            
-    def check_return(value):
-        return value.strip().lower() == "return"
-     
-     
-    #  # validate the user id        
-    # def validate_user_id(self):
-    #     while True:
-    #         user_id = input("Enter User ID: ")
-    #         if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
-    #             return user_id
-    #         print("Invalid User ID! Must be an existing active user ID.")
-    
-    
-    # # validate book id
-    # def validate_book_id(self):
-    #     while True:
-    #         book_id = input("Enter Book ID: ")
-    #         if book_id in self.db["books"]:
-    #             return book_id
-    #         print("Invalid Book ID! Must be an existing book ID.")
+
+
+    def check_return(self, value):
+        return self.is_return_input(value)
+
+
+    # validate the user id
+    def validate_user_id(self):
+        while True:
+            user_id = input("Enter User ID: ")
+            if self.is_return_input(user_id):
+                return None
+            if (
+                user_id in self.db["users"]
+                and self.db["users"][user_id]["user_status"] == "active"
+            ):
+                return user_id
+            print("Invalid User ID! Must be an existing active user ID.")
+
+    def confirm_details(self, data, title="Review Details"):
+        print(f"\n===== {title} =====")
+        for key, value in data.items():
+            print(f"{key.replace('_', ' ').capitalize()}: {value}")
+        
+        confirm = input("\nPress Enter to Confirm or type 'cancel' to discard: ").strip().lower()
+        if confirm == 'cancel':
+            print("Operation Cancelled.")
+            return False
+        return True
