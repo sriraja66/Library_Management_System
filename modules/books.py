@@ -4,6 +4,35 @@ from modules.validation import Validation
 class Books_module(Validation):
     #add book 
 
+    def ask_to_add_supplier(self):
+        choice = input(
+            "Supplier not found. Do you want to add supplier now? (yes/no): "
+        ).strip().lower()
+
+        if choice == "yes":
+            self.add_supplier()
+            return True
+
+        print("Supplier not added.")
+        return False
+
+    def select_supplier_id(self):
+        while True:
+            supplier_id = input(
+                "Enter Supplier ID "
+                "(type 'return' to go back): "
+            )
+
+            if self.is_return_input(supplier_id):
+                return None
+
+            if supplier_id in self.db["suppliers"]:
+                return supplier_id
+
+            added = self.ask_to_add_supplier()
+            if added:
+                print("Now enter the Supplier ID again.")
+
     def add_book(self):
         i = f"B{len(self.db['books']) + 1}"
         title = self.validate_text("title")
@@ -20,9 +49,6 @@ class Books_module(Validation):
             return
         genre = self.validate_text("genre")
         if genre is None:
-            return
-        copies_available = self.validate_number("copies available")
-        if copies_available is None:
             return
         main_category = self.validate_text("main category")
         if main_category is None:
@@ -42,85 +68,100 @@ class Books_module(Validation):
         total_copies = self.validate_number("total copies")
         if total_copies is None:
             return
-        available_copies = self.validate_number("available copies")
-        if available_copies is None:
-            return
-        reserved_copies = self.validate_number("reserved copies")
-        if reserved_copies is None:
-            return
-        damaged_copies = self.validate_number("damaged copies")
-        if damaged_copies is None:
-            return
-        lost_copies = self.validate_number("lost copies")
-        if lost_copies is None:
-            return
         age_restriction = self.validate_number("age restriction")
         if age_restriction is None:
             return
-        membership_restriction = self.validate_text("membership restriction")
+        membership_restriction = self.validate_book_membership_restriction()
         if membership_restriction is None:
             return
         borrowing_limit = self.validate_number("borrowing limit")
         if borrowing_limit is None:
             return
-        supplier_id = self.validate_supplier_id()
+        supplier_id = self.select_supplier_id()
         if supplier_id is None:
             return
-        supplier_name = self.validate_supplier_name()
-        if supplier_name is None:
-            return
-        contact_info = self.validate_contact_info()
-        if contact_info is None:
-            return
+        supplier = self.db["suppliers"][supplier_id]
 
         book_details = {
             "title": title,
             "author": author,
             "isbn": isbn,
+            "publication_year": publication_year,
             "genre": genre,
+            "main_category": main_category,
+            "sub_category": sub_category,
+            "shelf": shelf,
+            "row": row,
+            "section": section,
             "total_copies": total_copies,
-            "supplier": supplier_name
+            "age_restriction": age_restriction,
+            "membership_restriction": membership_restriction,
+            "borrowing_limit": borrowing_limit,
+            "supplier_id": supplier_id,
+            "supplier_name": supplier["supplier_name"],
+            "contact_info": supplier["contact_info"]
         }
 
-        if self.confirm_details(book_details, "Book Details"):
+        book_validators = {
+            "title": ("validate_text", "title"),
+            "author": ("validate_text", "author"),
+            "isbn": "validate_isbn",
+            "publication_year": "validate_publication_year",
+            "genre": ("validate_text", "genre"),
+            "main_category": ("validate_text", "main category"),
+            "sub_category": ("validate_text", "sub category"),
+            "shelf": ("validate_number", "shelf number"),
+            "row": ("validate_number", "row number"),
+            "section": ("validate_text", "section"),
+            "total_copies": ("validate_number", "total copies"),
+            "age_restriction": ("validate_number", "age restriction"),
+            "membership_restriction": "validate_book_membership_restriction",
+            "borrowing_limit": ("validate_number", "borrowing limit"),
+            "supplier_id": "select_supplier_id"
+        }
+
+        if self.review_and_edit_details(book_details, book_validators, "Book Details"):
+            supplier_id = book_details["supplier_id"]
+            supplier = self.db["suppliers"][supplier_id]
+            book_details["supplier_name"] = supplier["supplier_name"]
+            book_details["contact_info"] = supplier["contact_info"]
+
             self.db["books"][i] = {
                 "basic":
                 {
-                    "title": title,
-                    "author": author,
-                    "isbn": isbn,
-                    "publication_year": publication_year,
-                    "genre": genre,
-                    "copies_available": copies_available
+                    "title": book_details["title"],
+                    "author": book_details["author"],
+                    "isbn": book_details["isbn"],
+                    "publication_year": book_details["publication_year"],
+                    "genre": book_details["genre"]
                 },
                 "category": {
-                    "main_category": main_category,
-                    "sub_category": sub_category
+                    "main_category": book_details["main_category"],
+                    "sub_category": book_details["sub_category"]
                 },
                 "location": {
-                    "shelf": shelf,
-                    "row": row,
-                    "section": section
+                    "shelf": book_details["shelf"],
+                    "row": book_details["row"],
+                    "section": book_details["section"]
             },
               "reservation_queue":[],
 
                 "inventory": {
-                    "total_copies": total_copies,
-                    "available_copies": available_copies,
-                    "reserved_copies": reserved_copies,
-                    "damaged_copies": damaged_copies,
-                    "lost_copies": lost_copies
+                    "total_copies": book_details["total_copies"],
+                    "available_copies": book_details["total_copies"],
+                    "damaged_copies": 0,
+                    "lost_copies": 0
             },
                 "restrictions": {
-                    "age_restriction": age_restriction,
-                    "membership_restriction": membership_restriction,
-                    "borrowing_limit": borrowing_limit
+                    "age_restriction": book_details["age_restriction"],
+                    "membership_restriction": book_details["membership_restriction"],
+                    "borrowing_limit": book_details["borrowing_limit"]
             },
                 "supplier": {
 
-                    "supplier_id": supplier_id,
-                    "supplier_name": supplier_name,
-                    "contact_info": contact_info
+                    "supplier_id": book_details["supplier_id"],
+                    "supplier_name": book_details["supplier_name"],
+                    "contact_info": book_details["contact_info"]
                 }
             }
             print(f"Book {i} added successfully.")
@@ -198,20 +239,6 @@ class Books_module(Validation):
                     return
                 book["basic"]["genre"] = new_genre
 
-            # COPIES AVAILABLE
-            copies_available = input(
-                f"Copies Available ({book['basic']['copies_available']}): "
-            )
-            if self.is_return_input(copies_available):
-                return
-            if copies_available:
-                new_copies_available = self.validate_number(
-                    "copies available"
-                )
-                if new_copies_available is None:
-                    return
-                book["basic"]["copies_available"] = new_copies_available
-
             # age restriction
             age_restriction = input(
                 f"Age Restriction ({book['restrictions']['age_restriction']}): "
@@ -231,7 +258,7 @@ class Books_module(Validation):
             if self.is_return_input(membership_restriction):
                 return
             if membership_restriction:
-                new_membership_restriction = self.validate_text("membership restriction")
+                new_membership_restriction = self.validate_book_membership_restriction()
                 if new_membership_restriction is None:
                     return
                 book["restrictions"]["membership_restriction"] = new_membership_restriction

@@ -12,8 +12,8 @@ class TransactionModule(Validation):
         if librarian_id.strip().lower() == "return":
             return
         if librarian_id in self.db["users"] and self.db["users"][librarian_id]["role"] == "librarian":
-            user_id = input("Enter user ID: ")
-            if user_id.strip().lower() == "return":
+            user_id = self.select_user_id()
+            if user_id is None:
                 return
             if user_id in self.db["users"] and self.db["users"][user_id]["user_status"] == "active":
                 book_id = input("Enter book ID: ")

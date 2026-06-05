@@ -56,24 +56,34 @@ class User_module (Validation):
             "membership": membership
         }
 
-        if self.confirm_details(user_details, "User Details"):
+        user_validators = {
+            "name": ("validate_text", "Name"),
+            "email": "validate_email",
+            "phone": "validate_phone",
+            "address": ("validate_text", "Address"),
+            "age": "validate_age",
+            "role": "validate_role",
+            "membership": ("validate_membership", self.db['settings']['memberships'])
+        }
+
+        if self.review_and_edit_details(user_details, user_validators, "User Details"):
             self.db["users"][i] = {
 
-                "name": name,
+                "name": user_details["name"],
 
-                "email": email,
+                "email": user_details["email"],
 
-                "phone": phone,
+                "phone": user_details["phone"],
 
-                "address": address,
+                "address": user_details["address"],
 
-                "age": age,
+                "age": user_details["age"],
 
-                "role": role,
+                "role": user_details["role"],
 
                 "membership": {
 
-                    "type": membership,
+                    "type": user_details["membership"],
 
                     "status": "active"
                 },

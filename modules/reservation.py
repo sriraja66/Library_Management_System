@@ -3,63 +3,71 @@ class Reservation_module( Validation):
 
     # reserve the book
     def reserve_book(self):
-        user_id = input("Enter User ID: ")
-        if self.is_return_input(user_id):
-            return
-        if user_id not in self.db["users"] or self.db["users"][user_id]["user_status"] != "active":
-            print("User Not Found")
+        user_id = self.select_user_id()
+        if user_id is None:
             return
 
-        book_id = input("Enter Book ID: ")
-        if self.is_return_input(book_id):
-            return
-        if book_id not in self.db["books"]:
-            print("Book Not Found")
-            return
-        user = self.db["users"][user_id]
-        book = self.db["books"][book_id]
-
-        # membership status check
-        if user["membership"]["status"] == "inactive":
-            print("User Membership Is Inactive")
+        book_id = self.validate_book_id()
+        if book_id is None:
             return
 
-        # restriction checks
-        age_restriction = book["restrictions"].get("age_restriction")
-        membership_restriction = book["restrictions"].get("membership_restriction")
-        user_age = int(user["age"])
-        # age restriction
-        if age_restriction and user_age < int(age_restriction):
-            print("User Is Not Old Enough")
-            return
-        # membership restriction
-        if (
-            membership_restriction
-            and user["membership"]["type"] != membership_restriction
-        ):
-            print("Membership Requirement Not Met")
-            return
-        # duplicate reservation check
-        for reservation in user["reservations"].values():
-
-            if (
-                reservation["book_id"] == book_id
-                and reservation["status"] == "reserved"
-            ):
-                print("Book Already Reserved")
-                return
-        
-        reservation_date = self.validate_date("Reservation Date (YYYY-MM-DD)")
+        reservation_date = self.validate_date("Reservation Date")
         if reservation_date is None:
             return
 
         reservation_details = {
-            "user": user["name"],
-            "book": book["basic"]["title"],
-            "date": reservation_date
+            "user_id": user_id,
+            "book_id": book_id,
+            "reservation_date": reservation_date
         }
 
-        if self.confirm_details(reservation_details, "Reservation Details"):
+        reservation_validators = {
+            "user_id": "select_user_id",
+            "book_id": "validate_book_id",
+            "reservation_date": ("validate_date", "Reservation Date")
+        }
+
+        if self.review_and_edit_details(
+            reservation_details,
+            reservation_validators,
+            "Reservation Details"
+        ):
+            user_id = reservation_details["user_id"]
+            book_id = reservation_details["book_id"]
+            reservation_date = reservation_details["reservation_date"]
+            user = self.db["users"][user_id]
+            book = self.db["books"][book_id]
+
+            # membership status check
+            if user["membership"]["status"] == "inactive":
+                print("User Membership Is Inactive")
+                return
+
+            # restriction checks
+            age_restriction = book["restrictions"].get("age_restriction")
+            membership_restriction = book["restrictions"].get("membership_restriction")
+            user_age = int(user["age"])
+            # age restriction
+            if age_restriction and user_age < int(age_restriction):
+                print("User Is Not Old Enough")
+                return
+            # membership restriction
+            if (
+                membership_restriction
+                and user["membership"]["type"] != membership_restriction
+            ):
+                print("Membership Requirement Not Met")
+                return
+            # duplicate reservation check
+            for reservation in user["reservations"].values():
+
+                if (
+                    reservation["book_id"] == book_id
+                    and reservation["status"] == "reserved"
+                ):
+                    print("Book Already Reserved")
+                    return
+
             # add to reservation queue
             book["reservation_queue"].append(user_id)
             # create reservation

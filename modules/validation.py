@@ -99,9 +99,9 @@ class Validation(Library):
             membership = input(
                 "Enter Membership Type "
                 "(type 'return' to go back): "
-            )
+            ).strip().lower()
 
-            if membership.strip().lower() == "return":
+            if membership == "return":
                 return None
 
             if membership in memberships:
@@ -109,6 +109,26 @@ class Validation(Library):
                 return membership
 
             print("Invalid Membership Type!")
+
+    def validate_book_membership_restriction(self):
+        while True:
+            valid_memberships = self.db["settings"]["memberships"]
+            print("\nAvailable Membership Restrictions:")
+            for membership in valid_memberships:
+                print(f"- {membership}")
+
+            membership = input(
+                "Enter Membership Restriction "
+                "(type 'return' to go back): "
+            ).strip().lower()
+
+            if membership == "return":
+                return None
+
+            if membership in valid_memberships:
+                return membership
+
+            print("Invalid Membership Restriction! Enter basic or premium.")
 
     #isbn validation
     def validate_isbn(self):
@@ -195,7 +215,10 @@ class Validation(Library):
                     return date
                 print("Invalid Date! Year must be between 0001 and 2100.")
             except ValueError:
-                print(f"Invalid {field}! Must be in YYYY-MM-DD format.")
+                print(
+                    f"Invalid {field}! Enter a real date in YYYY-MM-DD format. "
+                    "Example: 2026-06-03"
+                )
 
 
     # role validation libibrarian, member , admin
@@ -268,6 +291,44 @@ class Validation(Library):
                 return user_id
             print("Invalid User ID! Must be an existing active user ID.")
 
+    def ask_to_add_user(self):
+        choice = input(
+            "User not found. Do you want to add user now? (yes/no): "
+        ).strip().lower()
+
+        if choice == "yes":
+            self.add_user()
+            return True
+
+        print("User not added.")
+        return False
+
+    def select_user_id(self):
+        while True:
+            user_id = input("Enter User ID: ")
+
+            if self.is_return_input(user_id):
+                return None
+
+            if (
+                user_id in self.db["users"]
+                and self.db["users"][user_id]["user_status"] == "active"
+            ):
+                return user_id
+
+            added = self.ask_to_add_user()
+            if added:
+                print("Now enter the User ID again.")
+
+    def validate_book_id(self):
+        while True:
+            book_id = input("Enter Book ID: ")
+            if self.is_return_input(book_id):
+                return None
+            if book_id in self.db["books"]:
+                return book_id
+            print("Invalid Book ID! Must be an existing book ID.")
+
     def confirm_details(self, data, title="Review Details"):
         print(f"\n===== {title} =====")
         for key, value in data.items():
@@ -278,3 +339,54 @@ class Validation(Library):
             print("Operation Cancelled.")
             return False
         return True
+
+    def review_and_edit_details(self, data, validators, title="Review Details"):
+        while True:
+            fields = list(data.keys())
+            print(f"\n===== {title} =====")
+            for index, key in enumerate(fields, start=1):
+                label = key.replace("_", " ").capitalize()
+                print(f"{index}. {label}: {data[key]}")
+
+            choice = input(
+                "\nPress Enter to save, type field number/name to edit, "
+                "or type 'cancel' to discard: "
+            ).strip()
+
+            if choice == "":
+                return True
+
+            if choice.lower() == "cancel":
+                print("Operation Cancelled.")
+                return False
+
+            selected_key = None
+            if choice.isdigit():
+                selected_index = int(choice) - 1
+                if 0 <= selected_index < len(fields):
+                    selected_key = fields[selected_index]
+            else:
+                normalized_choice = choice.lower().replace(" ", "_")
+                for key in fields:
+                    if key.lower() == normalized_choice:
+                        selected_key = key
+                        break
+
+            if selected_key is None or selected_key not in validators:
+                print("Invalid field. Please choose a valid field number or name.")
+                continue
+
+            validator = validators[selected_key]
+
+            if isinstance(validator, str):
+                new_value = getattr(self, validator)()
+            else:
+                method_name = validator[0]
+                args = validator[1:]
+                new_value = getattr(self, method_name)(*args)
+
+            if new_value is None:
+                print("Edit cancelled. Keeping old value.")
+                continue
+
+            data[selected_key] = new_value
